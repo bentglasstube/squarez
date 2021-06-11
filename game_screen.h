@@ -5,6 +5,7 @@
 #include "entt/entity/registry.hpp"
 
 #include "screen.h"
+#include "text.h"
 
 class GameScreen : public Screen {
   public:
@@ -20,8 +21,10 @@ class GameScreen : public Screen {
 
     entt::registry reg_;
     std::mt19937 rng_;
+    Text text_;
 
     state state_;
+    int score_;
 
     void add_box(size_t count = 1);
 

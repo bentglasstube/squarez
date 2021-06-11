@@ -6,7 +6,7 @@
 #include "config.h"
 #include "geometry.h"
 
-GameScreen::GameScreen() : rng_(Util::random_seed()), state_(state::playing) {
+GameScreen::GameScreen() : rng_(Util::random_seed()), text_("text.png"), state_(state::playing), score_(0) {
   const auto player = reg_.create();
   reg_.emplace<Color>(player, 0xd8ff00ff);
   reg_.emplace<Position>(player, pos{ kConfig.graphics.width / 2.0f, kConfig.graphics.height / 2.0f});
@@ -108,6 +108,12 @@ void GameScreen::draw(Graphics& graphics) const {
     const pos p = bullets.get<const Position>(b).p;
     graphics.draw_pixel({ (int)p.x, (int)p.y }, 0xd8ff00ff);
   }
+
+  if (state_ == state::paused) {
+    text_.draw(graphics, "Paused", graphics.width() / 2, graphics.height() / 2 - 4, Text::Alignment::Center);
+  }
+
+  text_.draw(graphics, std::to_string(score_), graphics.width(), 0, Text::Alignment::Right);
 }
 
 void GameScreen::add_box(size_t count) {
@@ -203,6 +209,7 @@ void GameScreen::cleanup() {
   auto view = reg_.view<Health>();
   for (const auto e : view) {
     if (view.get<Health>(e).health <= 0.0f) {
+      ++score_;
       reg_.destroy(e);
       add_box();
     }

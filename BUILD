@@ -2,6 +2,7 @@ package(default_visibility = ["//visibility:public"])
 
 cc_binary(
     name = "squarez",
+    data = ["//content"],
     linkopts = [
         "-lSDL2",
         "-static-libstdc++",
@@ -28,6 +29,7 @@ cc_library(
     hdrs = ["game_screen.h"],
     deps = [
         "@libgam//:screen",
+        "@libgam//:text",
         "@libgam//:util",
         "@entt//:entt",
         ":components",
