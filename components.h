@@ -29,8 +29,10 @@ struct Timer {
   float elapsed = 0.0f;
   constexpr float ratio() const { return elapsed / lifetime; };
 };
+
 struct Particle {};
 struct Flash {};
+struct FadeOut {};
 
 struct Flocking {};
 struct StayInBounds {};

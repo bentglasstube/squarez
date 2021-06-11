@@ -55,6 +55,11 @@ bool GameScreen::update(const Input& input, Audio&, unsigned int elapsed) {
 
       if (reg_.view<PlayerControl>().size() == 0) {
         state_ = state::lost;
+
+        const auto fade = reg_.create();
+        reg_.emplace<FadeOut>(fade);
+        reg_.emplace<Timer>(fade, 2.5f, false);
+        reg_.emplace<Color>(fade, 0x000000ff);
       }
 
       break;
@@ -146,6 +151,12 @@ namespace {
 }
 
 void GameScreen::draw_overlay(Graphics& graphics) const {
+  const auto fade = reg_.view<const FadeOut, const Timer, const Color>();
+  for (const auto f : fade) {
+    const uint32_t c = color_opacity(fade.get<const Color>(f).color, fade.get<const Timer>(f).ratio());
+    graphics.draw_rect({0, 0}, {graphics.width(), graphics.height()}, c, true);
+  }
+
   if (state_ == state::paused) {
     graphics.draw_rect({0, 0}, {graphics.width(), graphics.height()}, 0x00000099, true);
     text_box(graphics, text_, "Paused");
