@@ -23,8 +23,10 @@ struct ScreenWrap {};
 struct PlayerControl {};
 struct Collision {};
 
-struct Expiry {
-  float lifetime = 1.0f, elapsed = 0;
+struct Timer {
+  float lifetime = 1.0f;
+  bool expire = true;
+  float elapsed = 0.0f;
   constexpr float ratio() const { return elapsed / lifetime; };
 };
 struct Particle {};

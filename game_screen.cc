@@ -94,18 +94,18 @@ void GameScreen::draw(Graphics& graphics) const {
 }
 
 void GameScreen::draw_flash(Graphics& graphics) const {
-  const auto flashes = reg_.view<const Flash, const Expiry, const Color>();
+  const auto flashes = reg_.view<const Flash, const Timer, const Color>();
   for (const auto f : flashes) {
-    const uint32_t c = color_opacity(flashes.get<const Color>(f).color, 1 - (flashes.get<const Expiry>(f).ratio()));
+    const uint32_t c = color_opacity(flashes.get<const Color>(f).color, 1 - (flashes.get<const Timer>(f).ratio()));
     graphics.draw_rect({0, 0}, {graphics.width(), graphics.height()}, c, true);
   }
 }
 
 void GameScreen::draw_particles(Graphics& graphics) const {
-  const auto particles = reg_.view<const Particle, const Expiry, const Position, const Color>();
+  const auto particles = reg_.view<const Particle, const Timer, const Position, const Color>();
   for (const auto pt : particles) {
     const pos p = particles.get<const Position>(pt).p;
-    graphics.draw_pixel({ (int)p.x, (int)p.y }, color_opacity(particles.get<const Color>(pt).color, 1 - particles.get<const Expiry>(pt).ratio()));
+    graphics.draw_pixel({ (int)p.x, (int)p.y }, color_opacity(particles.get<const Color>(pt).color, 1 - particles.get<const Timer>(pt).ratio()));
   }
 }
 
@@ -191,7 +191,7 @@ void GameScreen::explosion(const pos p, uint32_t color) {
     const auto pt = reg_.create();
 
     reg_.emplace<Particle>(pt);
-    reg_.emplace<Expiry>(pt, lifetime(rng_));
+    reg_.emplace<Timer>(pt, lifetime(rng_));
     reg_.emplace<Position>(pt, p);
     reg_.emplace<Color>(pt, color);
     reg_.emplace<Velocity>(pt, velocity(rng_));
@@ -237,7 +237,7 @@ void GameScreen::collision() {
 
         const auto flash = reg_.create();
         reg_.emplace<Flash>(flash);
-        reg_.emplace<Expiry>(flash, 0.2f);
+        reg_.emplace<Timer>(flash, 0.2f);
         reg_.emplace<Color>(flash, 0x770000ff);
 
         reg_.destroy(t);
@@ -346,11 +346,11 @@ void GameScreen::movement(float t) {
 }
 
 void GameScreen::expiring(float t) {
-  auto view = reg_.view<Expiry>();
+  auto view = reg_.view<Timer>();
   for (const auto e : view) {
-    Expiry& exp = view.get<Expiry>(e);
-    exp.elapsed += t;
-    if (exp.elapsed > exp.lifetime) reg_.destroy(e);
+    Timer& tm = view.get<Timer>(e);
+    tm.elapsed += t;
+    if (tm.expire && tm.elapsed > tm.lifetime) reg_.destroy(e);
   }
 }
 
