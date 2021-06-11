@@ -382,8 +382,8 @@ void GameScreen::expiring(float t) {
   }
 }
 
-void GameScreen::firing(float t) {
-  auto view = reg_.view<Firing, const Position, const Angle>();
+void GameScreen::firing(Audio& audio, float t) {
+  auto view = reg_.view<Firing, const Position, const Angle, const Velocity>();
   for (const auto e : view) {
     Firing& gun = view.get<Firing>(e);
 
@@ -396,7 +396,7 @@ void GameScreen::firing(float t) {
       const auto bullet = reg_.create();
       reg_.emplace<Bullet>(bullet, e);
       reg_.emplace<Position>(bullet, pos{p.x + 5 * std::cos(a), p.y + 5 * std::sin(a)});
-      reg_.emplace<Velocity>(bullet, 13);
+      reg_.emplace<Velocity>(bullet, view.get<const Velocity>(e).vel + 5);
       reg_.emplace<Angle>(bullet, a);
 
       audio.play_sample("shot.wav");
