@@ -32,12 +32,26 @@ class GameScreen : public Screen {
     void explosion(const pos p, uint32_t color);
 
     void user_input(const Input& input);
+
     void collision();
-    void cleanup();
+
+    void accelleration(float t);
+    void rotation(float t);
+    void steering(float t);
+    void flocking();
+    void stay_in_bounds();
+    void max_velocity();
     void movement(float t);
+
     void expiring(float t);
     void firing(float t);
-    void flocking();
 
-    void stay_in_bounds();
+    void kill_dead();
+    void kill_oob();
+
+    void draw_flash(Graphics& graphics) const;
+    void draw_particles(Graphics& graphics) const;
+    void draw_squares(Graphics& graphics) const;
+    void draw_bullets(Graphics& graphics) const;
+    void draw_overlay(Graphics& graphics) const;
 };

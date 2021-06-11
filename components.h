@@ -32,4 +32,5 @@ struct Flash {};
 
 struct Flocking {};
 struct StayInBounds {};
+struct KillOffScreen {};
 

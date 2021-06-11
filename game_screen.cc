@@ -34,13 +34,20 @@ bool GameScreen::update(const Input& input, Audio&, unsigned int elapsed) {
 
       user_input(input);
 
-      movement(t);
-      firing(t);
+      accelleration(t);
+      rotation(t);
+      steering(t);
       flocking();
       stay_in_bounds();
+      max_velocity();
+      movement(t);
+
+      firing(t);
 
       collision();
-      cleanup();
+
+      kill_dead();
+      kill_oob();
 
       if (reg_.view<PlayerControl>().size() == 0) {
         state_ = state::lost;
@@ -75,19 +82,31 @@ namespace {
 }
 
 void GameScreen::draw(Graphics& graphics) const {
+  draw_flash(graphics);
+  draw_particles(graphics);
+  draw_squares(graphics);
+  draw_bullets(graphics);
+  draw_overlay(graphics);
+}
+
+void GameScreen::draw_flash(Graphics& graphics) const {
   const auto flashes = reg_.view<const Flash, const Expiry, const Color>();
   for (const auto f : flashes) {
     const uint32_t c = color_opacity(flashes.get<const Color>(f).color, 1 - (flashes.get<const Expiry>(f).ratio()));
     graphics.draw_rect({0, 0}, {graphics.width(), graphics.height()}, c, true);
   }
+}
 
+void GameScreen::draw_particles(Graphics& graphics) const {
   const auto particles = reg_.view<const Particle, const Expiry, const Position, const Color>();
   for (const auto pt : particles) {
     const pos p = particles.get<const Position>(pt).p;
     graphics.draw_pixel({ (int)p.x, (int)p.y }, color_opacity(particles.get<const Color>(pt).color, 1 - particles.get<const Expiry>(pt).ratio()));
   }
+}
 
-  const auto squarez = reg_.view<const Position, const Size, const Color>();
+void GameScreen::draw_squares(Graphics& graphics) const {
+  const auto squarez = reg_.view<const Position, const Size, const Color, const Angle>();
   for (const auto s : squarez) {
     const pos p = squarez.get<const Position>(s).p;
     const float size = squarez.get<const Size>(s).size;
@@ -95,24 +114,23 @@ void GameScreen::draw(Graphics& graphics) const {
     const bool filled = reg_.all_of<PlayerControl>(s);
 
     graphics.draw_rect({ (int)r.left, (int)r.top }, { (int)r.right, (int)r.bottom }, squarez.get<const Color>(s).color, filled);
-    if (reg_.all_of<Firing>(s)) graphics.draw_rect({ (int)r.left, (int)r.top }, { (int)r.right, (int)r.bottom }, 0xff0000ff, false);
-
-    if (reg_.all_of<Angle>(s)) {
-      const float angle = reg_.get<Angle>(s).angle;
-      graphics.draw_line({ (int)p.x, (int)p.y }, { (int)(p.x + size * std::cos(angle)), (int)(p.y + size * std::sin(angle)) }, 0xffffffff);
-    }
+    const float angle = reg_.get<const Angle>(s).angle;
+    graphics.draw_line({ (int)p.x, (int)p.y }, { (int)(p.x + size * std::cos(angle)), (int)(p.y + size * std::sin(angle)) }, 0xffffffff);
   }
+}
 
+void GameScreen::draw_bullets(Graphics& graphics) const {
   const auto bullets = reg_.view<const Position, const Bullet>();
   for (const auto b : bullets) {
     const pos p = bullets.get<const Position>(b).p;
     graphics.draw_circle({ (int)p.x, (int)p.y }, 2, 0xffffffff, true);
   }
+}
 
+void GameScreen::draw_overlay(Graphics& graphics) const {
   if (state_ == state::paused) {
     text_.draw(graphics, "Paused", graphics.width() / 2, graphics.height() / 2 - 4, Text::Alignment::Center);
   }
-
   text_.draw(graphics, std::to_string(score_), graphics.width(), 0, Text::Alignment::Right);
 }
 
@@ -161,7 +179,7 @@ void GameScreen::explosion(const pos p, uint32_t color) {
 }
 
 void GameScreen::user_input(const Input& input) {
-  auto view = reg_.view<PlayerControl, Accelleration, Rotation>();
+  auto view = reg_.view<const PlayerControl, Accelleration, Rotation>();
   for (auto e : view) {
     float& accel = view.get<Accelleration>(e).accel;
     float& rot = view.get<Rotation>(e).rot;
@@ -183,14 +201,14 @@ void GameScreen::user_input(const Input& input) {
 }
 
 void GameScreen::collision() {
-  auto players = reg_.view<PlayerControl, Position, Size, Health>();
+  auto players = reg_.view<const PlayerControl, const Position, const Size, Health>();
   for (auto player : players) {
-    const rect player_rect = get_rect(players.get<Position>(player).p, players.get<Size>(player).size);
-    auto targets = reg_.view<Collision, Position, Size>();
+    const rect player_rect = get_rect(players.get<const Position>(player).p, players.get<const Size>(player).size);
+    auto targets = reg_.view<const Collision, const Position, const Size>();
     for (auto t : targets) {
       if (player == t) continue;
 
-      const rect r = get_rect(targets.get<Position>(t).p, targets.get<Size>(t).size);
+      const rect r = get_rect(targets.get<const Position>(t).p, targets.get<const Size>(t).size);
 
       if (r.intersect(player_rect)) {
         players.get<Health>(player).health--;
@@ -206,14 +224,14 @@ void GameScreen::collision() {
     }
   }
 
-  auto bullets = reg_.view<Bullet, Position>();
+  auto bullets = reg_.view<const Bullet, const Position>();
   for (auto b : bullets) {
-    const pos p = bullets.get<Position>(b).p;
-    auto targets = reg_.view<Collision, Position, Size, Health>();
+    const pos p = bullets.get<const Position>(b).p;
+    auto targets = reg_.view<const Collision, const Position, const Size, Health>();
     for (auto t : targets) {
-      if (t == bullets.get<Bullet>(b).source) continue;
+      if (t == bullets.get<const Bullet>(b).source) continue;
 
-      const rect r = get_rect(targets.get<Position>(t).p, targets.get<Size>(t).size);
+      const rect r = get_rect(targets.get<const Position>(t).p, targets.get<const Size>(t).size);
 
       if (r.contains(p)) {
         targets.get<Health>(t).health--;
@@ -224,12 +242,12 @@ void GameScreen::collision() {
   }
 }
 
-void GameScreen::cleanup() {
-  auto view = reg_.view<Health, Position, Color>();
+void GameScreen::kill_dead() {
+  auto view = reg_.view<const Health, const Position, const Color>();
   for (const auto e : view) {
-    if (view.get<Health>(e).health <= 0.0f) {
-      const uint32_t color = view.get<Color>(e).color;
-      const pos p = view.get<Position>(e).p;
+    if (view.get<const Health>(e).health <= 0.0f) {
+      const uint32_t color = view.get<const Color>(e).color;
+      const pos p = view.get<const Position>(e).p;
       explosion(p, color);
       ++score_;
 
@@ -247,32 +265,52 @@ namespace {
   }
 }
 
+void GameScreen::kill_oob() {
+  auto view = reg_.view<const Position, const KillOffScreen>();
+  for (const auto e : view) {
+    if (oob(view.get<const Position>(e).p)) reg_.destroy(e);
+  }
+}
+
+void GameScreen::accelleration(float t) {
+  auto view = reg_.view<Velocity, const Accelleration>();
+  for (const auto e : view) {
+    float& vel = view.get<Velocity>(e).vel;
+    vel = (vel + view.get<const Accelleration>(e).accel * t) * 0.99;
+  }
+}
+
+void GameScreen::rotation(float t) {
+  auto view = reg_.view<Angle, const Rotation>();
+  for (const auto e : view) {
+    float& angle = view.get<Angle>(e).angle;
+    angle += view.get<const Rotation>(e).rot * t;
+  }
+}
+
+void GameScreen::steering(float t) {
+  auto view = reg_.view<Angle, const TargetDir>();
+  for (const auto e : view) {
+    float& angle = view.get<Angle>(e).angle;
+    angle += std::clamp(view.get<const TargetDir>(e).target - angle, -t, t);
+  }
+}
+
+void GameScreen::max_velocity() {
+  auto view = reg_.view<Velocity, const MaxVelocity>();
+  for (const auto e : view) {
+    float& vel = view.get<Velocity>(e).vel;
+    const float max = view.get<const MaxVelocity>(e).max;
+    if (vel > max) vel = max;
+  }
+}
+
 void GameScreen::movement(float t) {
-  auto view = reg_.view<Position, Velocity, Angle>();
+  auto view = reg_.view<Position, const Velocity, const Angle>();
   for (const auto e : view) {
     pos& p = view.get<Position>(e).p;
-    float& vel = view.get<Velocity>(e).vel;
-    float& angle = view.get<Angle>(e).angle;
-
-    if (reg_.all_of<Rotation>(e)) {
-      const float rot = reg_.get<Rotation>(e).rot;
-      angle += rot * t;
-    }
-
-    if (reg_.all_of<TargetDir>(e)) {
-      const float target = reg_.get<TargetDir>(e).target;
-      angle += std::clamp(target - angle, -t, t);
-    }
-
-    if (reg_.all_of<Accelleration>(e)) {
-      const float accel = reg_.get<Accelleration>(e).accel;
-      vel = (vel + accel * t) * 0.99;
-    }
-
-    if (reg_.all_of<MaxVelocity>(e)) {
-      const float max = reg_.get<MaxVelocity>(e).max;
-      if (vel > max) vel = max;
-    }
+    const float vel = view.get<const Velocity>(e).vel;
+    const float angle = view.get<const Angle>(e).angle;
 
     p += pos::polar(vel, angle);
 
@@ -282,8 +320,6 @@ void GameScreen::movement(float t) {
       while (p.y < 0) p.y += kConfig.graphics.height;
       while (p.y > kConfig.graphics.height) p.y -= kConfig.graphics.height;
     }
-
-    if (reg_.all_of<Bullet>(e) && oob(p)) reg_.destroy(e);
   }
 }
 
@@ -297,15 +333,15 @@ void GameScreen::expiring(float t) {
 }
 
 void GameScreen::firing(float t) {
-  auto view = reg_.view<Firing, Position, Angle>();
+  auto view = reg_.view<Firing, const Position, const Angle>();
   for (const auto e : view) {
     Firing& gun = view.get<Firing>(e);
 
     gun.time += t;
     if (gun.time > gun.rate) {
       gun.time -= gun.rate;
-      const pos p = view.get<Position>(e).p;
-      const float a = view.get<Angle>(e).angle;
+      const pos p = view.get<const Position>(e).p;
+      const float a = view.get<const Angle>(e).angle;
 
       const auto bullet = reg_.create();
       reg_.emplace<Bullet>(bullet, e);
@@ -317,28 +353,28 @@ void GameScreen::firing(float t) {
 }
 
 void GameScreen::flocking() {
-  auto view = reg_.view<Flocking, Position, Velocity, Angle>();
+  auto view = reg_.view<const Flocking, const Position, Velocity, const Angle>();
   for (const auto e : view) {
-    const pos boid = view.get<Position>(e).p;
-    const float angle = view.get<Angle>(e).angle;
+    const pos boid = view.get<const Position>(e).p;
+    const float angle = view.get<const Angle>(e).angle;
     float& vel = view.get<Velocity>(e).vel;
 
     int count = 0;
     pos center, flock, avoid;
     pos v = pos::polar(vel, angle);
 
-    auto nearby = reg_.view<Flocking, Position, Velocity, Angle>();
+    auto nearby = reg_.view<const Flocking, const Position, const Velocity, const Angle>();
     for (const auto other : nearby) {
       if (other == e) continue;
 
-      pos p = nearby.get<Position>(other).p;
+      pos p = nearby.get<const Position>(other).p;
       float d = p.dist2(boid);
 
       // close enough to see
       if (d < 75.0f * 75.0f) {
         ++count;
         center += p;
-        flock += pos::polar(nearby.get<Velocity>(other).vel, nearby.get<Angle>(other).angle);
+        flock += pos::polar(nearby.get<const Velocity>(other).vel, nearby.get<const Angle>(other).angle);
       }
 
       // too close
@@ -361,9 +397,9 @@ void GameScreen::flocking() {
 void GameScreen::stay_in_bounds() {
   const float buffer = 25.0f;
 
-  auto view = reg_.view<StayInBounds, Position, Velocity, Angle>();
+  auto view = reg_.view<const StayInBounds, const Position, Velocity, Angle>();
   for (const auto e : view) {
-    const pos p = view.get<Position>(e).p;
+    const pos p = view.get<const Position>(e).p;
     float& vel = view.get<Velocity>(e).vel;
     float& angle = view.get<Angle>(e).angle;
 
