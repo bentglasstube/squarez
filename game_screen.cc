@@ -148,6 +148,12 @@ namespace {
     graphics.draw_rect(p1, p2, 0xffffffff, false);
     text.draw(graphics, msg, graphics.width() / 2, graphics.height() / 2 - 8, Text::Alignment::Center);
   }
+
+  void health_box(Graphics& graphics, const Graphics::Point p1, const Graphics::Point p2, uint32_t color, float fullness) {
+    graphics.draw_rect(p1, p2, 0x000000ff, true);
+    graphics.draw_rect(p1, { p1.x + (int)((p2.x - p1.x) * fullness), p2.y }, color, true);
+    graphics.draw_rect(p1, p2, color, false);
+  }
 }
 
 void GameScreen::draw_overlay(Graphics& graphics) const {
@@ -165,6 +171,14 @@ void GameScreen::draw_overlay(Graphics& graphics) const {
   }
 
   text_.draw(graphics, std::to_string(score_), graphics.width(), 0, Text::Alignment::Right);
+
+  // TODO make work for multiple players
+  const auto players = reg_.view<const PlayerControl, const Color, const Health>();
+  for (const auto p : players) {
+    const Graphics::Point start {0, graphics.height() - 16};
+    const Graphics::Point end {graphics.width(), graphics.height()};
+    health_box(graphics, start, end, players.get<const Color>(p).color, players.get<const Health>(p).health / 1000.0f);
+  }
 }
 
 void GameScreen::add_box(size_t count) {
