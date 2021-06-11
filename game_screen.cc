@@ -19,7 +19,7 @@ GameScreen::GameScreen() : rng_(Util::random_seed()), text_("text.png"), state_(
   reg_.emplace<Size>(player, 20.0f);
   reg_.emplace<Health>(player, 1000);
 
-  add_box(100);
+  add_box(1000);
 }
 
 bool GameScreen::update(const Input& input, Audio&, unsigned int elapsed) {
