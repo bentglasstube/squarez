@@ -2,7 +2,6 @@ package(default_visibility = ["//visibility:public"])
 
 cc_binary(
     name = "squarez",
-    data = ["//content"],
     linkopts = [
         "-lSDL2",
         "-static-libstdc++",
