@@ -34,6 +34,7 @@ bool GameScreen::update(const Input& input, Audio&, unsigned int elapsed) {
 
       user_input(input);
 
+      // movement systems
       accelleration(t);
       rotation(t);
       steering(t);
@@ -42,10 +43,13 @@ bool GameScreen::update(const Input& input, Audio&, unsigned int elapsed) {
       max_velocity();
       movement(t);
 
+      // state systems
       firing(t);
 
+      // collision systems
       collision();
 
+      // cleanup systems
       kill_dead();
       kill_oob();
 
@@ -127,10 +131,28 @@ void GameScreen::draw_bullets(Graphics& graphics) const {
   }
 }
 
+namespace {
+  void text_box(Graphics& graphics, const Text& text, const std::string& msg) {
+    static const int width = 50;
+    static const int height = 20;
+
+    const Graphics::Point p1 { graphics.width() / 2 - width, graphics.height() / 2 - height };
+    const Graphics::Point p2 { graphics.width() / 2 + width, graphics.height() / 2 + height };
+
+    graphics.draw_rect(p1, p2, 0x000000ff, true);
+    graphics.draw_rect(p1, p2, 0xffffffff, false);
+    text.draw(graphics, msg, graphics.width() / 2, graphics.height() / 2 - 8, Text::Alignment::Center);
+  }
+}
+
 void GameScreen::draw_overlay(Graphics& graphics) const {
   if (state_ == state::paused) {
-    text_.draw(graphics, "Paused", graphics.width() / 2, graphics.height() / 2 - 4, Text::Alignment::Center);
+    graphics.draw_rect({0, 0}, {graphics.width(), graphics.height()}, 0x00000099, true);
+    text_box(graphics, text_, "Paused");
+  } else if (state_ == state::lost) {
+    text_box(graphics, text_, "Game Over");
   }
+
   text_.draw(graphics, std::to_string(score_), graphics.width(), 0, Text::Alignment::Right);
 }
 
