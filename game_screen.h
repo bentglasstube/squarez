@@ -7,6 +7,8 @@
 #include "screen.h"
 #include "text.h"
 
+#include "geometry.h"
+
 class GameScreen : public Screen {
   public:
 
@@ -27,10 +29,12 @@ class GameScreen : public Screen {
     int score_;
 
     void add_box(size_t count = 1);
+    void explosion(const pos p, uint32_t color);
 
     void user_input(const Input& input);
     void collision();
     void cleanup();
+    void particles(float t);
     void movement(float t);
     void fading(float t);
     void firing(float t);

@@ -4,7 +4,6 @@
 
 #include "components.h"
 #include "config.h"
-#include "geometry.h"
 
 GameScreen::GameScreen() : rng_(Util::random_seed()), text_("text.png"), state_(state::playing), score_(0) {
   const auto player = reg_.create();
@@ -35,6 +34,7 @@ bool GameScreen::update(const Input& input, Audio&, unsigned int elapsed) {
 
       user_input(input);
 
+      particles(t);
       movement(t);
       firing(t);
       flocking();
@@ -78,6 +78,12 @@ namespace {
 
     return (color & 0xffffff00) | lsb;
   }
+
+  uint32_t particle_color(const Particle& pt, uint32_t color) {
+    const float alpha = std::min(pt.elapsed / pt.lifetime, 1.0f);
+    const uint32_t lsb = (uint32_t)(255 * (1 - alpha ));
+    return (color & 0xffffff00) | lsb;
+  }
 }
 
 void GameScreen::draw(Graphics& graphics) const {
@@ -85,6 +91,12 @@ void GameScreen::draw(Graphics& graphics) const {
   for (const auto f : fades) {
     const uint32_t c = fade_color(fades.get<const Fade>(f), fades.get<const Color>(f).color);
     graphics.draw_rect({0, 0}, {graphics.width(), graphics.height()}, c, true);
+  }
+
+  const auto particles = reg_.view<const Particle, const Position, const Color>();
+  for (const auto pt : particles) {
+    const pos p = particles.get<const Position>(pt).p;
+    graphics.draw_pixel({ (int)p.x, (int)p.y }, particle_color(particles.get<const Particle>(pt), particles.get<const Color>(pt).color));
   }
 
   const auto squarez = reg_.view<const Position, const Size, const Color>();
@@ -139,6 +151,23 @@ void GameScreen::add_box(size_t count) {
     reg_.emplace<MaxVelocity>(square);
     reg_.emplace<Flocking>(square);
     reg_.emplace<StayInBounds>(square);
+  }
+}
+
+void GameScreen::explosion(const pos p, uint32_t color) {
+  std::uniform_real_distribution<float> angle(0, 2 * M_PI);
+  std::uniform_real_distribution<float> velocity(1, 15);
+  std::uniform_real_distribution<float> lifetime(1.5f, 4.5f);
+
+  for (size_t i = 0; i < 500; ++i) {
+    const auto pt = reg_.create();
+
+    reg_.emplace<Particle>(pt, lifetime(rng_));
+    reg_.emplace<Position>(pt, p);
+    reg_.emplace<Color>(pt, color);
+    reg_.emplace<Velocity>(pt, velocity(rng_));
+    reg_.emplace<Angle>(pt, angle(rng_));
+    reg_.emplace<StayInBounds>(pt);
   }
 }
 
@@ -206,13 +235,26 @@ void GameScreen::collision() {
 }
 
 void GameScreen::cleanup() {
-  auto view = reg_.view<Health>();
+  auto view = reg_.view<Health, Position, Color>();
   for (const auto e : view) {
     if (view.get<Health>(e).health <= 0.0f) {
+      const uint32_t color = view.get<Color>(e).color;
+      const pos p = view.get<Position>(e).p;
+      explosion(p, color);
       ++score_;
+
       reg_.destroy(e);
       add_box();
     }
+  }
+}
+
+void GameScreen::particles(float t) {
+  auto view = reg_.view<Particle>();
+  for (const auto e : view) {
+    Particle& p = view.get<Particle>(e);
+    p.elapsed += t;
+    if (p.elapsed > p.lifetime) reg_.destroy(e);
   }
 }
 

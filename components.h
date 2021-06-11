@@ -23,6 +23,8 @@ struct ScreenWrap {};
 struct PlayerControl {};
 struct Collision {};
 
+struct Particle { float lifetime = 1.0f, elapsed = 0; };
+
 struct Fade {
   float time = 0;
   enum FadeDirection { in, out } dir = Fade::in;
