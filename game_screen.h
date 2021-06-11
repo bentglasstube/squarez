@@ -17,6 +17,8 @@ class GameScreen : public Screen {
     bool update(const Input& input, Audio& audio, unsigned int elapsed) override;
     void draw(Graphics& graphics) const override;
 
+    std::string get_music_track() const override { return "bedtime.ogg"; }
+
   private:
 
     enum class state { playing, paused, won, lost };
@@ -29,11 +31,11 @@ class GameScreen : public Screen {
     int score_;
 
     void add_box(size_t count = 1);
-    void explosion(const pos p, uint32_t color);
+    void explosion(Audio& audio, const pos p, uint32_t color);
 
     void user_input(const Input& input);
 
-    void collision();
+    void collision(Audio& audio);
 
     void accelleration(float t);
     void rotation(float t);
@@ -44,9 +46,9 @@ class GameScreen : public Screen {
     void movement(float t);
 
     void expiring(float t);
-    void firing(float t);
+    void firing(Audio& audio, float t);
 
-    void kill_dead();
+    void kill_dead(Audio& audio);
     void kill_oob();
 
     void draw_flash(Graphics& graphics) const;

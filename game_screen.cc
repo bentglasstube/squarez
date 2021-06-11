@@ -22,7 +22,7 @@ GameScreen::GameScreen() : rng_(Util::random_seed()), text_("text.png"), state_(
   add_box(1000);
 }
 
-bool GameScreen::update(const Input& input, Audio&, unsigned int elapsed) {
+bool GameScreen::update(const Input& input, Audio& audio, unsigned int elapsed) {
   const float t = elapsed / 1000.0f;
   expiring(t);
 
@@ -44,13 +44,13 @@ bool GameScreen::update(const Input& input, Audio&, unsigned int elapsed) {
       movement(t);
 
       // state systems
-      firing(t);
+      firing(audio, t);
 
       // collision systems
-      collision();
+      collision(audio);
 
       // cleanup systems
-      kill_dead();
+      kill_dead(audio);
       kill_oob();
 
       if (reg_.view<PlayerControl>().size() == 0) {
@@ -207,7 +207,7 @@ void GameScreen::add_box(size_t count) {
   }
 }
 
-void GameScreen::explosion(const pos p, uint32_t color) {
+void GameScreen::explosion(Audio& audio, const pos p, uint32_t color) {
   std::uniform_real_distribution<float> angle(0, 2 * M_PI);
   std::uniform_real_distribution<float> velocity(1, 15);
   std::uniform_real_distribution<float> lifetime(1.5f, 4.5f);
@@ -223,6 +223,8 @@ void GameScreen::explosion(const pos p, uint32_t color) {
     reg_.emplace<Angle>(pt, angle(rng_));
     reg_.emplace<StayInBounds>(pt);
   }
+
+  audio.play_sample("explode.wav");
 }
 
 void GameScreen::user_input(const Input& input) {
@@ -247,7 +249,7 @@ void GameScreen::user_input(const Input& input) {
   }
 }
 
-void GameScreen::collision() {
+void GameScreen::collision(Audio& audio) {
   auto players = reg_.view<const PlayerControl, const Position, const Size, Health>();
   for (auto player : players) {
     const rect player_rect = get_rect(players.get<const Position>(player).p, players.get<const Size>(player).size);
@@ -267,6 +269,7 @@ void GameScreen::collision() {
 
         reg_.destroy(t);
         add_box();
+        audio.play_sample("hit.wav");
       }
     }
   }
@@ -289,13 +292,13 @@ void GameScreen::collision() {
   }
 }
 
-void GameScreen::kill_dead() {
+void GameScreen::kill_dead(Audio& audio) {
   auto view = reg_.view<const Health, const Position, const Color>();
   for (const auto e : view) {
     if (view.get<const Health>(e).health <= 0.0f) {
       const uint32_t color = view.get<const Color>(e).color;
       const pos p = view.get<const Position>(e).p;
-      explosion(p, color);
+      explosion(audio, p, color);
       ++score_;
 
       reg_.destroy(e);
@@ -395,6 +398,8 @@ void GameScreen::firing(float t) {
       reg_.emplace<Position>(bullet, pos{p.x + 5 * std::cos(a), p.y + 5 * std::sin(a)});
       reg_.emplace<Velocity>(bullet, 13);
       reg_.emplace<Angle>(bullet, a);
+
+      audio.play_sample("shot.wav");
     }
   }
 }
