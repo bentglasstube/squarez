@@ -141,7 +141,7 @@ void GameScreen::add_box(size_t count) {
     const uint32_t c = hsl{hue(rng_), 1.0f, 0.5f};
     const pos p = { (float)px(rng_), (float)py(rng_) };
 
-    reg_.emplace<Health>(square, 5);
+    reg_.emplace<Health>(square, 1);
     reg_.emplace<Color>(square, c);
     reg_.emplace<Position>(square, p);
     reg_.emplace<Size>(square, size(rng_));
