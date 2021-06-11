@@ -85,7 +85,7 @@ namespace {
   }
 
   uint32_t color_opacity(uint32_t color, float opacity) {
-    const uint32_t lsb = (uint32_t)(255 * std::clamp(opacity, 0.0f, 1.0f));
+    const uint32_t lsb = (uint32_t)((color & 0xff) * std::clamp(opacity, 0.0f, 1.0f));
     return (color & 0xffffff00) | lsb;
   }
 }
@@ -249,7 +249,7 @@ void GameScreen::collision() {
         const auto flash = reg_.create();
         reg_.emplace<Flash>(flash);
         reg_.emplace<Timer>(flash, 0.2f);
-        reg_.emplace<Color>(flash, 0x770000ff);
+        reg_.emplace<Color>(flash, 0x77000033);
 
         reg_.destroy(t);
         add_box();
