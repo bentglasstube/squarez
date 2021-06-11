@@ -24,7 +24,7 @@ GameScreen::GameScreen() : rng_(Util::random_seed()), text_("text.png"), state_(
 
 bool GameScreen::update(const Input& input, Audio&, unsigned int elapsed) {
   const float t = elapsed / 1000.0f;
-  fading(t);
+  expiring(t);
 
   switch (state_) {
     case state::playing:
@@ -34,7 +34,6 @@ bool GameScreen::update(const Input& input, Audio&, unsigned int elapsed) {
 
       user_input(input);
 
-      particles(t);
       movement(t);
       firing(t);
       flocking();
@@ -45,9 +44,6 @@ bool GameScreen::update(const Input& input, Audio&, unsigned int elapsed) {
 
       if (reg_.view<PlayerControl>().size() == 0) {
         state_ = state::lost;
-        const auto fade = reg_.create();
-        reg_.emplace<Color>(fade, 0x333333ff);
-        reg_.emplace<Fade>(fade, 1.0, Fade::in);
       }
 
       break;
@@ -72,31 +68,23 @@ namespace {
     return { p.x - size / 2, p.y - size / 2, p.x + size / 2, p.y + size / 2 };
   }
 
-  uint32_t fade_color(const Fade& fade, uint32_t color) {
-    const float alpha = std::min(fade.elapsed / fade.time, 1.0f);
-    const uint32_t lsb = (uint32_t)(255 * (fade.dir == Fade::out ? 1 - alpha : alpha));
-
-    return (color & 0xffffff00) | lsb;
-  }
-
-  uint32_t particle_color(const Particle& pt, uint32_t color) {
-    const float alpha = std::min(pt.elapsed / pt.lifetime, 1.0f);
-    const uint32_t lsb = (uint32_t)(255 * (1 - alpha ));
+  uint32_t color_opacity(uint32_t color, float opacity) {
+    const uint32_t lsb = (uint32_t)(255 * std::clamp(opacity, 0.0f, 1.0f));
     return (color & 0xffffff00) | lsb;
   }
 }
 
 void GameScreen::draw(Graphics& graphics) const {
-  const auto fades = reg_.view<const Fade, const Color>();
-  for (const auto f : fades) {
-    const uint32_t c = fade_color(fades.get<const Fade>(f), fades.get<const Color>(f).color);
+  const auto flashes = reg_.view<const Flash, const Expiry, const Color>();
+  for (const auto f : flashes) {
+    const uint32_t c = color_opacity(flashes.get<const Color>(f).color, 1 - (flashes.get<const Expiry>(f).ratio()));
     graphics.draw_rect({0, 0}, {graphics.width(), graphics.height()}, c, true);
   }
 
-  const auto particles = reg_.view<const Particle, const Position, const Color>();
+  const auto particles = reg_.view<const Particle, const Expiry, const Position, const Color>();
   for (const auto pt : particles) {
     const pos p = particles.get<const Position>(pt).p;
-    graphics.draw_pixel({ (int)p.x, (int)p.y }, particle_color(particles.get<const Particle>(pt), particles.get<const Color>(pt).color));
+    graphics.draw_pixel({ (int)p.x, (int)p.y }, color_opacity(particles.get<const Color>(pt).color, 1 - particles.get<const Expiry>(pt).ratio()));
   }
 
   const auto squarez = reg_.view<const Position, const Size, const Color>();
@@ -162,7 +150,8 @@ void GameScreen::explosion(const pos p, uint32_t color) {
   for (size_t i = 0; i < 500; ++i) {
     const auto pt = reg_.create();
 
-    reg_.emplace<Particle>(pt, lifetime(rng_));
+    reg_.emplace<Particle>(pt);
+    reg_.emplace<Expiry>(pt, lifetime(rng_));
     reg_.emplace<Position>(pt, p);
     reg_.emplace<Color>(pt, color);
     reg_.emplace<Velocity>(pt, velocity(rng_));
@@ -207,7 +196,8 @@ void GameScreen::collision() {
         players.get<Health>(player).health--;
 
         const auto flash = reg_.create();
-        reg_.emplace<Fade>(flash, 0.2f, Fade::out);
+        reg_.emplace<Flash>(flash);
+        reg_.emplace<Expiry>(flash, 0.2f);
         reg_.emplace<Color>(flash, 0x770000ff);
 
         reg_.destroy(t);
@@ -246,15 +236,6 @@ void GameScreen::cleanup() {
       reg_.destroy(e);
       add_box();
     }
-  }
-}
-
-void GameScreen::particles(float t) {
-  auto view = reg_.view<Particle>();
-  for (const auto e : view) {
-    Particle& p = view.get<Particle>(e);
-    p.elapsed += t;
-    if (p.elapsed > p.lifetime) reg_.destroy(e);
   }
 }
 
@@ -306,12 +287,12 @@ void GameScreen::movement(float t) {
   }
 }
 
-void GameScreen::fading(float t) {
-  auto view = reg_.view<Fade>();
+void GameScreen::expiring(float t) {
+  auto view = reg_.view<Expiry>();
   for (const auto e : view) {
-    Fade& fade = view.get<Fade>(e);
-    fade.elapsed += t;
-    if (fade.elapsed > fade.time && fade.dir == Fade::out) reg_.destroy(e);
+    Expiry& exp = view.get<Expiry>(e);
+    exp.elapsed += t;
+    if (exp.elapsed > exp.lifetime) reg_.destroy(e);
   }
 }
 

@@ -34,9 +34,8 @@ class GameScreen : public Screen {
     void user_input(const Input& input);
     void collision();
     void cleanup();
-    void particles(float t);
     void movement(float t);
-    void fading(float t);
+    void expiring(float t);
     void firing(float t);
     void flocking();
 

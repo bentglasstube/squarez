@@ -23,13 +23,12 @@ struct ScreenWrap {};
 struct PlayerControl {};
 struct Collision {};
 
-struct Particle { float lifetime = 1.0f, elapsed = 0; };
-
-struct Fade {
-  float time = 0;
-  enum FadeDirection { in, out } dir = Fade::in;
-  float elapsed = 0;
+struct Expiry {
+  float lifetime = 1.0f, elapsed = 0;
+  constexpr float ratio() const { return elapsed / lifetime; };
 };
+struct Particle {};
+struct Flash {};
 
 struct Flocking {};
 struct StayInBounds {};
