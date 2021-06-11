@@ -129,7 +129,7 @@ void GameScreen::draw(Graphics& graphics) const {
 }
 
 void GameScreen::add_box(size_t count) {
-  std::uniform_int_distribution<uint32_t> color(50, 150);
+  std::uniform_real_distribution<float> hue(0, 260);
   std::uniform_int_distribution<int> size(10, 20);
   std::uniform_int_distribution<int> px(0, kConfig.graphics.width);
   std::uniform_int_distribution<int> py(0, kConfig.graphics.height);
@@ -138,7 +138,7 @@ void GameScreen::add_box(size_t count) {
 
   for (size_t i = 0; i < count; ++i) {
     const auto square = reg_.create();
-    const uint32_t c = color(rng_) << 24 | color(rng_) << 16 | color(rng_) << 8 | 0xff;
+    const uint32_t c = hsl{hue(rng_), 1.0f, 0.5f};
     const pos p = { (float)px(rng_), (float)py(rng_) };
 
     reg_.emplace<Health>(square, 5);
