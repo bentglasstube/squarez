@@ -20,7 +20,7 @@ GameScreen::GameScreen() : rng_(Util::random_seed()), text_("text.png"), state_(
   reg_.emplace<Size>(player, 20.0f);
   reg_.emplace<Health>(player);
 
-  add_box(50);
+  add_box(100);
 }
 
 bool GameScreen::update(const Input& input, Audio&, unsigned int elapsed) {
@@ -106,7 +106,7 @@ void GameScreen::draw(Graphics& graphics) const {
   const auto bullets = reg_.view<const Position, const Bullet>();
   for (const auto b : bullets) {
     const pos p = bullets.get<const Position>(b).p;
-    graphics.draw_pixel({ (int)p.x, (int)p.y }, 0xd8ff00ff);
+    graphics.draw_circle({ (int)p.x, (int)p.y }, 2, 0xffffffff, true);
   }
 
   if (state_ == state::paused) {

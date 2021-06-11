@@ -2,8 +2,8 @@
 
 Config::Config() : Game::Config() {
   graphics.title = "Squarez";
-  graphics.width = 1280;
-  graphics.height = 720;
+  graphics.width = 2560;
+  graphics.height = 1440;
   graphics.intscale = 2;
-  graphics.fullscreen = false;
+  graphics.fullscreen = true;
 }
