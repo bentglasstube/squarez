@@ -216,6 +216,14 @@ void GameScreen::cleanup() {
   }
 }
 
+namespace {
+  constexpr bool oob(pos p) {
+    if (p.x < 0 || p.x > kConfig.graphics.width) return true;
+    if (p.y < 0 || p.y > kConfig.graphics.height) return true;
+    return false;
+  }
+}
+
 void GameScreen::movement(float t) {
   auto view = reg_.view<Position, Velocity, Angle>();
   for (const auto e : view) {
@@ -252,10 +260,7 @@ void GameScreen::movement(float t) {
       while (p.y > kConfig.graphics.height) p.y -= kConfig.graphics.height;
     }
 
-    if (reg_.all_of<Bullet>(e)) {
-      if (p.x < 0 || p.x > kConfig.graphics.width) reg_.destroy(e);
-      if (p.y < 0 || p.y > kConfig.graphics.height) reg_.destroy(e);
-    }
+    if (reg_.all_of<Bullet>(e) && oob(p)) reg_.destroy(e);
   }
 }
 
