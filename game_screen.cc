@@ -456,7 +456,14 @@ void GameScreen::flocking() {
       if (d < 20.0f * 20.0f) avoid += boid - p;
     }
 
-    if (count > 0) {
+    if (count == 0) {
+      auto players = reg_.view<const PlayerControl, const Position>();
+      for (const auto p : players) {
+        const pos seek = players.get<const Position>(p).p;
+        reg_.emplace_or_replace<TargetDir>(e, (seek - boid).angle());
+        break;
+      }
+    } else {
       center /= count;
       flock /= count;
 
