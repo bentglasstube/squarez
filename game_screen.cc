@@ -44,6 +44,7 @@ bool GameScreen::update(const Input& input, Audio& audio, unsigned int elapsed) 
       movement(t);
 
       // state systems
+      bombing(audio, t);
       firing(audio, t);
 
       // collision systems
@@ -246,6 +247,10 @@ void GameScreen::user_input(const Input& input) {
     } else {
       reg_.remove<Firing>(e);
     }
+
+    if (input.key_pressed(Input::Button::Select)) {
+      static_cast<void>(reg_.get_or_emplace<Bomb>(e));
+    }
   }
 }
 
@@ -382,6 +387,19 @@ void GameScreen::expiring(float t) {
   }
 }
 
+void GameScreen::bullet(Audio& audio, entt::entity source, const pos p, const float a, const float vel) {
+  const auto bullet = reg_.create();
+
+  reg_.emplace<Bullet>(bullet, source);
+  reg_.emplace<Position>(bullet, pos{p.x + 5 * std::cos(a), p.y + 5 * std::sin(a)});
+  reg_.emplace<Velocity>(bullet, vel);
+  reg_.emplace<MaxVelocity>(bullet, vel);
+  reg_.emplace<Angle>(bullet, a);
+  reg_.emplace<KillOffScreen>(bullet);
+
+  audio.play_sample("shot.wav");
+}
+
 void GameScreen::firing(Audio& audio, float t) {
   auto view = reg_.view<Firing, const Position, const Angle, const Velocity>();
   for (const auto e : view) {
@@ -392,15 +410,20 @@ void GameScreen::firing(Audio& audio, float t) {
       gun.time -= gun.rate;
       const pos p = view.get<const Position>(e).p;
       const float a = view.get<const Angle>(e).angle;
+      const float vel = view.get<const Velocity>(e).vel + 5;
 
-      const auto bullet = reg_.create();
-      reg_.emplace<Bullet>(bullet, e);
-      reg_.emplace<Position>(bullet, pos{p.x + 5 * std::cos(a), p.y + 5 * std::sin(a)});
-      reg_.emplace<Velocity>(bullet, view.get<const Velocity>(e).vel + 5);
-      reg_.emplace<Angle>(bullet, a);
-
-      audio.play_sample("shot.wav");
+      bullet(audio, e, p, a, vel);
     }
+  }
+}
+
+void GameScreen::bombing(Audio& audio, float t) {
+  auto view = reg_.view<Bomb, const Position>();
+  for (const auto e : view) {
+    for (float a = 0; a < 2 * M_PI; a += M_PI / 10.0f) {
+      bullet(audio, e, view.get<const Position>(e).p, a, 15);
+    }
+    reg_.remove<Bomb>(e);
   }
 }
 

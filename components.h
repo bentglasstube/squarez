@@ -19,6 +19,7 @@ struct Color { uint32_t color = 0x006496ff; };
 
 struct Bullet { entt::entity source; };
 struct Firing { float rate = 0.250f, time = rate; };
+struct Bomb {};
 struct ScreenWrap {};
 struct PlayerControl {};
 struct Collision {};

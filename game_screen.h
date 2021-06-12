@@ -32,6 +32,7 @@ class GameScreen : public Screen {
 
     void add_box(size_t count = 1);
     void explosion(Audio& audio, const pos p, uint32_t color);
+    void bullet(Audio& audio, entt::entity source, const pos p, float a, float vel);
 
     void user_input(const Input& input);
 
@@ -47,6 +48,7 @@ class GameScreen : public Screen {
 
     void expiring(float t);
     void firing(Audio& audio, float t);
+    void bombing(Audio& audio, float t);
 
     void kill_dead(Audio& audio);
     void kill_oob();
