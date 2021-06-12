@@ -17,7 +17,7 @@ GameScreen::GameScreen() : rng_(Util::random_seed()), text_("text.png"), state_(
   reg_.emplace<Angle>(player, 0.0f);
   reg_.emplace<Rotation>(player);
   reg_.emplace<Size>(player, 20.0f);
-  reg_.emplace<Health>(player, 1000);
+  reg_.emplace<Health>(player, 100);
 
   add_box(1000);
 }
@@ -178,7 +178,7 @@ void GameScreen::draw_overlay(Graphics& graphics) const {
   for (const auto p : players) {
     const Graphics::Point start {0, graphics.height() - 16};
     const Graphics::Point end {graphics.width(), graphics.height()};
-    health_box(graphics, start, end, players.get<const Color>(p).color, players.get<const Health>(p).health / 1000.0f);
+    health_box(graphics, start, end, players.get<const Color>(p).color, players.get<const Health>(p).health / 100.0f);
   }
 }
 
